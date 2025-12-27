@@ -1,7 +1,11 @@
 -- Supabase Schema for Oesters Cafe and Resto
+-- This script is idempotent (safe to run multiple times)
+
+-- Enable UUID extension
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- 1. Store Settings Table
-CREATE TABLE store_settings (
+CREATE TABLE IF NOT EXISTS store_settings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     store_name TEXT NOT NULL DEFAULT 'Oesters Cafe and Resto',
     address TEXT,
@@ -15,7 +19,7 @@ CREATE TABLE store_settings (
 );
 
 -- 2. Categories Table
-CREATE TABLE categories (
+CREATE TABLE IF NOT EXISTS categories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     sort_order INTEGER DEFAULT 0,
@@ -23,7 +27,7 @@ CREATE TABLE categories (
 );
 
 -- 3. Menu Items Table
-CREATE TABLE menu_items (
+CREATE TABLE IF NOT EXISTS menu_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
@@ -40,7 +44,7 @@ CREATE TABLE menu_items (
 );
 
 -- 4. Order Types Table
-CREATE TABLE order_types (
+CREATE TABLE IF NOT EXISTS order_types (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
@@ -48,7 +52,7 @@ CREATE TABLE order_types (
 );
 
 -- 5. Payment Settings Table
-CREATE TABLE payment_settings (
+CREATE TABLE IF NOT EXISTS payment_settings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     account_number TEXT,
@@ -59,7 +63,7 @@ CREATE TABLE payment_settings (
 );
 
 -- 6. Orders Table
-CREATE TABLE orders (
+CREATE TABLE IF NOT EXISTS orders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_number SERIAL,
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

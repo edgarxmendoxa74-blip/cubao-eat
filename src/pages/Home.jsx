@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { categories as initialCategories, menuItems } from '../data/MenuData';
+import { supabase } from '../supabaseClient';
 
 const Home = () => {
     const [cart, setCart] = useState([]);
@@ -53,14 +54,14 @@ const Home = () => {
 
     // Store status logic
     const isStoreOpen = () => {
-        if (storeSettings.manualStatus === 'open') return true;
-        if (storeSettings.manualStatus === 'closed') return false;
+        if (storeSettings.manual_status === 'open') return true;
+        if (storeSettings.manual_status === 'closed') return false;
 
         const now = new Date();
         const currentTime = now.getHours() * 60 + now.getMinutes();
 
-        const [openH, openM] = storeSettings.openTime.split(':').map(Number);
-        const [closeH, closeM] = storeSettings.closeTime.split(':').map(Number);
+        const [openH, openM] = (storeSettings.open_time || '16:00').split(':').map(Number);
+        const [closeH, closeM] = (storeSettings.close_time || '01:00').split(':').map(Number);
 
         const openMinutes = openH * 60 + openM;
         const closeMinutes = closeH * 60 + closeM;
@@ -74,51 +75,78 @@ const Home = () => {
 
     const isOpen = isStoreOpen();
 
-    // Load data from LocalStorage
+    // Load data from Supabase (with LocalStorage fallback)
     useEffect(() => {
-        const savedItems = localStorage.getItem('menuItems');
-        const savedCats = localStorage.getItem('categories');
-        const savedPayments = localStorage.getItem('paymentSettings');
-
-        setItems(savedItems ? JSON.parse(savedItems) : menuItems);
-
-        if (savedCats) {
-            const parsedCats = JSON.parse(savedCats);
-            setCategories(parsedCats);
-            if (parsedCats.length > 0) setActiveCategory(parsedCats[0].id);
-        } else {
-            // Fallback
-            const defaultCats = [{ id: 'oysters', name: 'Oysters' }, { id: 'coffee', name: 'Coffee' }, { id: 'pasta', name: 'Pasta' }];
-            setCategories(defaultCats);
-            setActiveCategory('oysters');
-        }
-
-        if (savedPayments) {
-            const parsed = JSON.parse(savedPayments);
-            if (!Array.isArray(parsed)) {
-                setPaymentSettings([
-                    { id: 'gcash', name: 'GCash', accountNumber: parsed.gcash?.number || '', accountName: parsed.gcash?.name || '', qrUrl: parsed.gcash?.qrUrl || '' },
-                    { id: 'paymaya', name: 'PayMaya', accountNumber: parsed.paymaya?.number || '', accountName: parsed.paymaya?.name || '', qrUrl: parsed.paymaya?.qrUrl || '' }
-                ]);
+        const fetchData = async () => {
+            // 1. Fetch Categories
+            const { data: catData } = await supabase.from('categories').select('*').order('sort_order', { ascending: true });
+            if (catData && catData.length > 0) {
+                setCategories(catData);
+                setActiveCategory(catData[0].id);
             } else {
-                setPaymentSettings(parsed);
+                const savedCats = localStorage.getItem('categories');
+                if (savedCats) {
+                    const parsed = JSON.parse(savedCats);
+                    setCategories(parsed);
+                    if (parsed.length > 0) setActiveCategory(parsed[0].id);
+                } else {
+                    setCategories([{ id: 'oysters', name: 'Oysters' }, { id: 'coffee', name: 'Coffee' }, { id: 'pasta', name: 'Pasta' }]);
+                    setActiveCategory('oysters');
+                }
             }
-        }
 
-        const savedOrderTypes = localStorage.getItem('orderTypes');
-        if (savedOrderTypes) setOrderTypes(JSON.parse(savedOrderTypes));
+            // 2. Fetch Menu Items
+            const { data: itemData } = await supabase.from('menu_items').select('*').order('sort_order', { ascending: true });
+            if (itemData && itemData.length > 0) {
+                setItems(itemData);
+            } else {
+                const savedItems = localStorage.getItem('menuItems');
+                setItems(savedItems ? JSON.parse(savedItems) : menuItems);
+            }
 
-        const savedStore = localStorage.getItem('storeSettings');
-        if (savedStore) setStoreSettings(JSON.parse(savedStore));
+            // 3. Fetch Payment Settings
+            const { data: payData } = await supabase.from('payment_settings').select('*').eq('is_active', true);
+            if (payData && payData.length > 0) {
+                setPaymentSettings(payData);
+            } else {
+                const savedPayments = localStorage.getItem('paymentSettings');
+                if (savedPayments) {
+                    const parsed = JSON.parse(savedPayments);
+                    setPaymentSettings(Array.isArray(parsed) ? parsed : []);
+                }
+            }
+
+            // 4. Fetch Order Types
+            const { data: typeData } = await supabase.from('order_types').select('*').eq('is_active', true);
+            if (typeData && typeData.length > 0) {
+                setOrderTypes(typeData);
+            } else {
+                const savedOrderTypes = localStorage.getItem('orderTypes');
+                if (savedOrderTypes) setOrderTypes(JSON.parse(savedOrderTypes));
+            }
+
+            // 5. Fetch Store Settings
+            const { data: storeData } = await supabase.from('store_settings').select('*').limit(1).single();
+            if (storeData) {
+                setStoreSettings(storeData);
+            } else {
+                const savedStore = localStorage.getItem('storeSettings');
+                if (savedStore) setStoreSettings(JSON.parse(savedStore));
+            }
+        };
+
+        fetchData();
     }, []);
 
     // Slideshow effect
     useEffect(() => {
+        const bannerCount = (storeSettings.banner_images || []).length;
+        if (bannerCount === 0) return;
         const timer = setInterval(() => {
-            setCurrentBannerIndex(prev => (prev + 1) % storeSettings.bannerImages.length);
+            setCurrentBannerIndex(prev => (prev + 1) % bannerCount);
         }, 5000);
         return () => clearInterval(timer);
-    }, [storeSettings.bannerImages.length]);
+    }, [storeSettings.banner_images]);
 
     // Selection state for products with options
     const [selectedProduct, setSelectedProduct] = useState(null);
@@ -201,7 +229,7 @@ const Home = () => {
 
         if (!paymentMethod) { alert('Please select a payment method.'); return; }
 
-        // --- LOGIN ORDER TO LOCALSTORAGE ---
+        // --- SAVE ORDER TO SUPABASE ---
         const itemDetails = cart.map(item => {
             let d = `${item.name} (x${item.quantity})`;
             if (item.selectedVariation) d += ` - ${item.selectedVariation.name}`;
@@ -211,17 +239,23 @@ const Home = () => {
         });
 
         const newOrder = {
-            id: Date.now(),
-            timestamp: new Date().toISOString(),
-            orderType,
-            paymentMethod,
-            customer: customerDetails,
+            order_type: orderType,
+            payment_method: paymentMethod,
+            customer_details: customerDetails,
             items: itemDetails,
-            total: cartTotal
+            total_amount: cartTotal,
+            status: 'Pending'
         };
 
+        // Async insert (not waiting here to avoid blocking Messenger redirect, but could wait)
+        supabase.from('orders').insert([newOrder]).then(({ error }) => {
+            if (error) console.error('Error saving order to Supabase:', error);
+        });
+
+        // Also save to LocalStorage as a local backup
+        const localOrder = { ...newOrder, id: Date.now(), timestamp: new Date().toISOString() };
         const existingOrders = JSON.parse(localStorage.getItem('orders') || '[]');
-        localStorage.setItem('orders', JSON.stringify([...existingOrders, newOrder]));
+        localStorage.setItem('orders', JSON.stringify([...existingOrders, localOrder]));
 
         // --- PREPARE MESSENGER MSG ---
         const orderDetailsStr = itemDetails.join('\n');
@@ -267,10 +301,10 @@ Thank you!`.trim();
             <header className="app-header">
                 <div className="container header-container">
                     <Link to="/" className="brand">
-                        <img src={storeSettings.logoUrl || "/logo.png"} alt="Oesters Logo" style={{ height: '50px' }} />
+                        <img src={storeSettings.logo_url || "/logo.png"} alt="Oesters Logo" style={{ height: '50px' }} />
                         <div className="brand-text">
-                            <span className="brand-name">{storeSettings.storeName.split(' ')[0]}</span>
-                            <span className="brand-sub">{storeSettings.storeName.split(' ').slice(1).join(' ')}</span>
+                            <span className="brand-name">{(storeSettings.store_name || 'Oesters').split(' ')[0]}</span>
+                            <span className="brand-sub">{(storeSettings.store_name || 'Cafe').split(' ').slice(1).join(' ')}</span>
                         </div>
                     </Link>
 
@@ -299,7 +333,7 @@ Thank you!`.trim();
                         </div>
                     </div>
                     <div className="hero-image-container" style={{ position: 'relative' }}>
-                        {storeSettings.bannerImages.map((url, i) => (
+                        {(storeSettings.banner_images || []).map((url, i) => (
                             <img
                                 key={i}
                                 src={url}
@@ -341,22 +375,22 @@ Thank you!`.trim();
                 </div>
 
                 <div className="menu-grid">
-                    {items.filter(item => item.categoryId === activeCategory).map(item => (
-                        <div className="menu-item-card" key={item.id} style={{ opacity: item.outOfStock ? 0.6 : 1 }}>
+                    {items.filter(item => item.category_id === activeCategory).map(item => (
+                        <div className="menu-item-card" key={item.id} style={{ opacity: item.out_of_stock ? 0.6 : 1 }}>
                             <div style={{ position: 'relative' }}>
                                 <img src={item.image} alt={item.name} className="menu-item-image" />
-                                {item.promoPrice && <span style={{ position: 'absolute', top: '10px', left: '10px', background: '#ef4444', color: 'white', padding: '4px 10px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 800 }}>PROMO</span>}
-                                {item.outOfStock && <span style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, borderRadius: '20px' }}>OUT OF STOCK</span>}
+                                {item.promo_price && <span style={{ position: 'absolute', top: '10px', left: '10px', background: '#ef4444', color: 'white', padding: '4px 10px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 800 }}>PROMO</span>}
+                                {item.out_of_stock && <span style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, borderRadius: '20px' }}>OUT OF STOCK</span>}
                             </div>
                             <div className="menu-item-info">
                                 <h3 className="menu-item-name">{item.name}</h3>
                                 <p className="menu-item-desc">{item.description}</p>
                                 <div className="menu-item-footer">
                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        {item.promoPrice ? (
+                                        {item.promo_price ? (
                                             <>
                                                 <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '0.8rem' }}>₱{item.price}</span>
-                                                <span className="menu-item-price" style={{ color: '#ef4444' }}>₱{item.promoPrice}</span>
+                                                <span className="menu-item-price" style={{ color: '#ef4444' }}>₱{item.promo_price}</span>
                                             </>
                                         ) : (
                                             <span className="menu-item-price">₱{item.price}</span>
@@ -364,9 +398,9 @@ Thank you!`.trim();
                                     </div>
                                     <button
                                         className="btn-primary"
-                                        disabled={item.outOfStock || !isOpen}
+                                        disabled={item.out_of_stock || !isOpen}
                                         onClick={() => openProductSelection(item)}
-                                        style={{ padding: '8px 16px', fontSize: '0.8rem', opacity: (item.outOfStock || !isOpen) ? 0.5 : 1 }}
+                                        style={{ padding: '8px 16px', fontSize: '0.8rem', opacity: (item.out_of_stock || !isOpen) ? 0.5 : 1 }}
                                     >
                                         <Plus size={14} style={{ marginRight: '5px' }} /> Add to Cart
                                     </button>

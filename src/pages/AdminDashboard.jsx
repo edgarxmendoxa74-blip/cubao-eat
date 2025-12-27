@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
 import {
     LayoutDashboard,
     LogOut,
@@ -79,14 +80,14 @@ const AdminDashboard = () => {
     const [storeSettings, setStoreSettings] = useState(() => {
         const saved = localStorage.getItem('storeSettings');
         return saved ? JSON.parse(saved) : {
-            manualStatus: 'auto', // auto, open, closed
-            openTime: '16:00',
-            closeTime: '01:00',
-            storeName: 'Oesters Cafe and Resto',
+            manual_status: 'auto', // auto, open, closed
+            open_time: '16:00',
+            close_time: '01:00',
+            store_name: 'Oesters Cafe and Resto',
             address: 'Poblacion, El Nido, Palawan',
             contact: '09563713967',
-            logoUrl: '',
-            bannerImages: [
+            logo_url: '',
+            banner_images: [
                 'https://images.unsplash.com/photo-1517701604599-bb29b565094d?auto=format&fit=crop&w=1200&q=80',
                 'https://images.unsplash.com/photo-1541167760496-162955ed8a9f?auto=format&fit=crop&w=1200&q=80',
                 'https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=1200&q=80'
@@ -94,21 +95,43 @@ const AdminDashboard = () => {
         };
     });
 
-    // --- PERSISTENCE ---
-    useEffect(() => { localStorage.setItem('menuItems', JSON.stringify(items)); }, [items]);
-    useEffect(() => { localStorage.setItem('categories', JSON.stringify(categories)); }, [categories]);
-    useEffect(() => { localStorage.setItem('paymentSettings', JSON.stringify(paymentSettings)); }, [paymentSettings]);
-    useEffect(() => { localStorage.setItem('storeSettings', JSON.stringify(storeSettings)); }, [storeSettings]);
-    useEffect(() => { localStorage.setItem('orderTypes', JSON.stringify(orderTypes)); }, [orderTypes]);
-    // Orders are read-only here mostly, but saving if we added status changes later
+    // --- FETCH DATA FROM SUPABASE ---
+    useEffect(() => {
+        const fetchAdminData = async () => {
+            const { data: catData } = await supabase.from('categories').select('*').order('sort_order', { ascending: true });
+            if (catData) setCategories(catData);
+
+            const { data: itemData } = await supabase.from('menu_items').select('*').order('sort_order', { ascending: true });
+            if (itemData) setItems(itemData);
+
+            const { data: payData } = await supabase.from('payment_settings').select('*');
+            if (payData) setPaymentSettings(payData);
+
+            const { data: typeData } = await supabase.from('order_types').select('*');
+            if (typeData) setOrderTypes(typeData);
+
+            const { data: storeData } = await supabase.from('store_settings').select('*').limit(1).single();
+            if (storeData) setStoreSettings(storeData);
+
+            const { data: orderData } = await supabase.from('orders').select('*').order('timestamp', { ascending: false });
+            if (orderData) setOrders(orderData);
+        };
+        fetchAdminData();
+    }, []);
+
+    // --- HELPERS ---
 
     // --- HELPER FUNC ---
-    const handleFileUpload = (e, methodId) => {
+    const handleFileUpload = async (e, methodId) => {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onloadend = () => {
-                setPaymentSettings(prev => prev.map(m => m.id === methodId ? { ...m, qrUrl: reader.result } : m));
+            reader.onloadend = async () => {
+                const qrUrl = reader.result;
+                const { error } = await supabase.from('payment_settings').update({ qr_url: qrUrl }).eq('id', methodId);
+                if (error) { console.error(error); showMessage('Error saving QR code to cloud.'); return; }
+                setPaymentSettings(prev => prev.map(m => m.id === methodId ? { ...m, qrUrl } : m));
+                showMessage('QR code updated!');
             };
             reader.readAsDataURL(file);
         }
@@ -141,40 +164,49 @@ const AdminDashboard = () => {
             }
         }, [editingItem]);
 
-        const handleSubmit = (e) => {
+        const handleSubmit = async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
-            const newItem = {
-                id: editingItem.id === 'new' ? Date.now() : editingItem.id,
+            const itemData = {
                 name: formData.get('name'),
                 description: formData.get('description'),
                 price: Number(formData.get('price')),
-                promoPrice: formData.get('promoPrice') ? Number(formData.get('promoPrice')) : null,
-                categoryId: formData.get('categoryId'),
+                promo_price: formData.get('promoPrice') ? Number(formData.get('promoPrice')) : null,
+                category_id: formData.get('categoryId'),
                 image: formData.get('image') || 'https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=500&q=80',
                 variations: tempVariations,
                 flavors: tempFlavors,
                 addons: tempAddons,
-                outOfStock: formData.get('outOfStock') === 'on'
+                out_of_stock: formData.get('outOfStock') === 'on'
             };
 
+            let finalItem;
             if (editingItem.id === 'new') {
-                setItems([...items, newItem]);
+                const { data, error } = await supabase.from('menu_items').insert([itemData]).select().single();
+                if (error) { console.error(error); showMessage('Error saving to cloud.'); return; }
+                finalItem = data;
+                setItems([...items, finalItem]);
             } else {
-                setItems(items.map(i => i.id === newItem.id ? newItem : i));
+                const { data, error } = await supabase.from('menu_items').update(itemData).eq('id', editingItem.id).select().single();
+                if (error) { console.error(error); showMessage('Error updating cloud.'); return; }
+                finalItem = data;
+                setItems(items.map(i => i.id === finalItem.id ? finalItem : i));
             }
+
             setEditingItem(null);
             showMessage('Product saved successfully!');
         };
 
-        const deleteItem = (id) => {
+        const deleteItem = async (id) => {
             if (window.confirm('Delete this product?')) {
+                const { error } = await supabase.from('menu_items').delete().eq('id', id);
+                if (error) { console.error(error); showMessage('Error deleting from cloud.'); return; }
                 setItems(items.filter(i => i.id !== id));
                 showMessage('Product deleted.');
             }
         };
 
-        const moveItem = (id, direction) => {
+        const moveItem = async (id, direction) => {
             const index = items.findIndex(i => i.id === id);
             if (index === -1) return;
             const newIndex = direction === 'up' ? index - 1 : index + 1;
@@ -183,12 +215,25 @@ const AdminDashboard = () => {
             const newItems = [...items];
             const [removed] = newItems.splice(index, 1);
             newItems.splice(newIndex, 0, removed);
-            setItems(newItems);
+
+            // Re-index all items to ensure consistent sort_order
+            const updatedItems = newItems.map((item, idx) => ({ ...item, sort_order: idx }));
+            setItems(updatedItems);
+
+            // Update Supabase for all items (batch update)
+            const { error } = await supabase.from('menu_items').upsert(updatedItems.map(i => ({
+                id: i.id,
+                sort_order: i.sort_order,
+                name: i.name, // Supabase upsert needs required fields or it might fail/create new if ID mismatch
+                price: i.price,
+                category_id: i.category_id
+            })));
+            if (error) console.error('Error syncing order:', error);
         };
 
         const filteredItems = items.filter(item => {
-            const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesCategory = filterCategory === 'all' || item.categoryId === filterCategory;
+            const matchesSearch = (item.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesCategory = filterCategory === 'all' || item.category_id === filterCategory;
             return matchesSearch && matchesCategory;
         });
 
@@ -213,7 +258,7 @@ const AdminDashboard = () => {
                             <option value="all">All Categories</option>
                             {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
-                        <button onClick={() => setEditingItem({ id: 'new', categoryId: categories[0]?.id })} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '12px' }}>
+                        <button onClick={() => setEditingItem({ id: 'new', category_id: categories[0]?.id })} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '12px' }}>
                             <Plus size={18} /> Add Product
                         </button>
                     </div>
@@ -235,14 +280,14 @@ const AdminDashboard = () => {
                                     </td>
                                     <td style={{ padding: '15px' }}>
                                         <span style={{ padding: '4px 10px', background: '#e2e8f0', borderRadius: '20px', fontSize: '0.8rem' }}>
-                                            {categories.find(c => c.id === item.categoryId)?.name || 'Uncategorized'}
+                                            {categories.find(c => c.id === item.category_id)?.name || 'Uncategorized'}
                                         </span>
                                     </td>
                                     <td style={{ padding: '15px' }}>
-                                        {item.promoPrice ? (
+                                        {item.promo_price ? (
                                             <div style={{ display: 'flex', flexDirection: 'column' }}>
                                                 <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '0.8rem' }}>₱{item.price}</span>
-                                                <span style={{ color: '#ef4444', fontWeight: 700 }}>₱{item.promoPrice}</span>
+                                                <span style={{ color: '#ef4444', fontWeight: 700 }}>₱{item.promo_price}</span>
                                             </div>
                                         ) : <span style={{ fontWeight: 700 }}>₱{item.price}</span>}
                                     </td>
@@ -275,14 +320,14 @@ const AdminDashboard = () => {
                         <textarea name="description" defaultValue={editingItem.description} placeholder="Description" style={inputStyle} />
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                             <input name="price" type="number" defaultValue={editingItem.price} placeholder="Price" required style={inputStyle} />
-                            <input name="promoPrice" type="number" defaultValue={editingItem.promoPrice} placeholder="Promo Price (Optional)" style={inputStyle} />
+                            <input name="promoPrice" type="number" defaultValue={editingItem.promo_price} placeholder="Promo Price (Optional)" style={inputStyle} />
                         </div>
-                        <select name="categoryId" defaultValue={editingItem.categoryId} style={inputStyle}>
+                        <select name="categoryId" defaultValue={editingItem.category_id} style={inputStyle}>
                             {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                         <input name="image" defaultValue={editingItem.image} placeholder="Image URL" style={inputStyle} />
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <input name="outOfStock" type="checkbox" defaultChecked={editingItem.outOfStock} style={{ width: '20px', height: '20px' }} />
+                            <input name="outOfStock" type="checkbox" defaultChecked={editingItem.out_of_stock} style={{ width: '20px', height: '20px' }} />
                             <label style={{ fontWeight: 600 }}>Mark as Out of Stock</label>
                         </div>
                     </div>
@@ -327,11 +372,12 @@ const AdminDashboard = () => {
         const [editingCatId, setEditingCatId] = useState(null);
         const [editCatName, setEditCatName] = useState('');
 
-        const addCategory = (e) => {
+        const addCategory = async (e) => {
             e.preventDefault();
             if (!newCat.trim()) return;
-            const id = newCat.toLowerCase().replace(/\s+/g, '-');
-            setCategories([...categories, { id, name: newCat }]);
+            const { data, error } = await supabase.from('categories').insert([{ name: newCat, sort_order: categories.length }]).select().single();
+            if (error) { console.error(error); showMessage('Error adding to cloud.'); return; }
+            setCategories([...categories, data]);
             setNewCat('');
             showMessage('Category added!');
         };
@@ -341,14 +387,16 @@ const AdminDashboard = () => {
             setEditCatName(cat.name);
         };
 
-        const saveEdit = (id) => {
+        const saveEdit = async (id) => {
             if (!editCatName.trim()) return;
-            setCategories(categories.map(c => c.id === id ? { ...c, name: editCatName } : c));
+            const { data, error } = await supabase.from('categories').update({ name: editCatName }).eq('id', id).select().single();
+            if (error) { console.error(error); showMessage('Error updating cloud.'); return; }
+            setCategories(categories.map(c => c.id === id ? data : c));
             setEditingCatId(null);
             showMessage('Category updated!');
         };
 
-        const moveCategory = (id, direction) => {
+        const moveCategory = async (id, direction) => {
             const index = categories.findIndex(c => c.id === id);
             if (index === -1) return;
             const newIndex = direction === 'up' ? index - 1 : index + 1;
@@ -357,15 +405,22 @@ const AdminDashboard = () => {
             const newCats = [...categories];
             const [removed] = newCats.splice(index, 1);
             newCats.splice(newIndex, 0, removed);
-            setCategories(newCats);
+
+            const updatedCats = newCats.map((cat, idx) => ({ ...cat, sort_order: idx }));
+            setCategories(updatedCats);
+
+            const { error } = await supabase.from('categories').upsert(updatedCats.map(c => ({ id: c.id, name: c.name, sort_order: c.sort_order })));
+            if (error) console.error('Error syncing order:', error);
         };
 
-        const deleteCategory = (id) => {
-            if (items.some(i => i.categoryId === id)) {
+        const deleteCategory = async (id) => {
+            if (items.some(i => i.category_id === id)) {
                 alert('Cannot delete category because it has products.');
                 return;
             }
             if (window.confirm('Delete category?')) {
+                const { error } = await supabase.from('categories').delete().eq('id', id);
+                if (error) { console.error(error); showMessage('Error deleting from cloud.'); return; }
                 setCategories(categories.filter(c => c.id !== id));
                 showMessage('Category deleted.');
             }
@@ -391,7 +446,7 @@ const AdminDashboard = () => {
                                 <>
                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                                         <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>{c.name}</span>
-                                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{items.filter(i => i.categoryId === c.id).length} products</span>
+                                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{items.filter(i => i.category_id === c.id).length} products</span>
                                     </div>
                                     <div style={{ display: 'flex', gap: '10px' }}>
                                         <button onClick={() => moveCategory(c.id, 'up')} style={{ color: 'var(--text-muted)', border: 'none', background: 'none', cursor: 'pointer' }} title="Move Up"><ChevronUp size={20} /></button>
@@ -414,15 +469,12 @@ const AdminDashboard = () => {
         const [editingId, setEditingId] = useState(null);
         const [editName, setEditName] = useState('');
 
-        const addType = (e) => {
+        const addType = async (e) => {
             e.preventDefault();
             if (!newType.trim()) return;
-            const id = newType.toLowerCase().replace(/\s+/g, '-');
-            if (orderTypes.some(t => t.id === id)) {
-                alert('An order type with this name already exists.');
-                return;
-            }
-            setOrderTypes([...orderTypes, { id, name: newType }]);
+            const { data, error } = await supabase.from('order_types').insert([{ name: newType }]).select().single();
+            if (error) { console.error(error); showMessage('Error adding to cloud.'); return; }
+            setOrderTypes([...orderTypes, data]);
             setNewType('');
             showMessage('Order type added!');
         };
@@ -432,15 +484,19 @@ const AdminDashboard = () => {
             setEditName(type.name);
         };
 
-        const saveEdit = (id) => {
+        const saveEdit = async (id) => {
             if (!editName.trim()) return;
-            setOrderTypes(orderTypes.map(t => t.id === id ? { ...t, name: editName } : t));
+            const { data, error } = await supabase.from('order_types').update({ name: editName }).eq('id', id).select().single();
+            if (error) { console.error(error); showMessage('Error updating cloud.'); return; }
+            setOrderTypes(orderTypes.map(t => t.id === id ? data : t));
             setEditingId(null);
             showMessage('Order type updated!');
         };
 
-        const deleteType = (id) => {
+        const deleteType = async (id) => {
             if (window.confirm('Delete order type?')) {
+                const { error } = await supabase.from('order_types').delete().eq('id', id);
+                if (error) { console.error(error); showMessage('Error deleting from cloud.'); return; }
                 setOrderTypes(orderTypes.filter(t => t.id !== id));
                 showMessage('Order type deleted.');
             }
@@ -483,37 +539,41 @@ const AdminDashboard = () => {
         const [editingMethodId, setEditingMethodId] = useState(null);
         const [showAddMethod, setShowAddMethod] = useState(false);
 
-        const handleSaveMethod = (e, methodId) => {
+        const handleSaveMethod = async (e, methodId) => {
             e.preventDefault();
             const formData = new FormData(e.target);
-            const updatedMethods = paymentSettings.map(m => m.id === methodId ? {
-                ...m,
+            const updateData = {
                 name: formData.get('name'),
-                accountNumber: formData.get('accountNumber'),
-                accountName: formData.get('accountName'),
-            } : m);
-            setPaymentSettings(updatedMethods);
+                account_number: formData.get('accountNumber'),
+                account_name: formData.get('accountName'),
+            };
+            const { data, error } = await supabase.from('payment_settings').update(updateData).eq('id', methodId).select().single();
+            if (error) { console.error(error); showMessage('Error updating cloud.'); return; }
+            setPaymentSettings(paymentSettings.map(m => m.id === methodId ? data : m));
             setEditingMethodId(null);
             showMessage('Payment method updated!');
         };
 
-        const handleAddMethod = (e) => {
+        const handleAddMethod = async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
             const newMethod = {
-                id: Date.now().toString(),
                 name: formData.get('name'),
-                accountNumber: formData.get('accountNumber'),
-                accountName: formData.get('accountName'),
-                qrUrl: ''
+                account_number: formData.get('accountNumber'),
+                account_name: formData.get('accountName'),
+                qr_url: ''
             };
-            setPaymentSettings([...paymentSettings, newMethod]);
+            const { data, error } = await supabase.from('payment_settings').insert([newMethod]).select().single();
+            if (error) { console.error(error); showMessage('Error adding to cloud.'); return; }
+            setPaymentSettings([...paymentSettings, data]);
             setShowAddMethod(false);
             showMessage('Payment method added!');
         };
 
-        const deleteMethod = (id) => {
+        const deleteMethod = async (id) => {
             if (window.confirm('Delete this payment method?')) {
+                const { error } = await supabase.from('payment_settings').delete().eq('id', id);
+                if (error) { console.error(error); showMessage('Error deleting from cloud.'); return; }
                 setPaymentSettings(paymentSettings.filter(m => m.id !== id));
                 showMessage('Payment method deleted.');
             }
@@ -553,12 +613,12 @@ const AdminDashboard = () => {
                                         <button type="button" onClick={() => setEditingMethodId(null)} style={{ border: 'none', background: 'none', cursor: 'pointer' }}><X size={20} /></button>
                                     </div>
                                     <input name="name" defaultValue={method.name} placeholder="Method Name" required style={inputStyle} />
-                                    <input name="accountNumber" defaultValue={method.accountNumber} placeholder="Account Number" required style={inputStyle} />
-                                    <input name="accountName" defaultValue={method.accountName} placeholder="Account Name" required style={inputStyle} />
+                                    <input name="accountNumber" defaultValue={method.account_number} placeholder="Account Number" required style={inputStyle} />
+                                    <input name="accountName" defaultValue={method.account_name} placeholder="Account Name" required style={inputStyle} />
 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                         <label style={{ fontSize: '0.9rem', fontWeight: 600 }}>QR Code Image (Optional)</label>
-                                        {method.qrUrl && <img src={method.qrUrl} style={{ width: '100px', height: '100px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #ddd' }} />}
+                                        {method.qr_url && <img src={method.qr_url} style={{ width: '100px', height: '100px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #ddd' }} />}
                                         <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, method.id)} style={inputStyle} />
                                     </div>
 
@@ -572,21 +632,21 @@ const AdminDashboard = () => {
                                                 {method.name}
                                             </h3>
                                             <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                <span style={{ fontSize: '1.2rem', fontWeight: 700 }}>{method.accountNumber}</span>
-                                                <button onClick={() => { navigator.clipboard.writeText(method.accountNumber); showMessage('Number copied!'); }} style={{ border: 'none', background: '#e2e8f0', color: 'var(--primary)', borderRadius: '5px', padding: '5px', cursor: 'pointer' }} title="Copy Number">
+                                                <span style={{ fontSize: '1.2rem', fontWeight: 700 }}>{method.account_number}</span>
+                                                <button onClick={() => { navigator.clipboard.writeText(method.account_number); showMessage('Number copied!'); }} style={{ border: 'none', background: '#e2e8f0', color: 'var(--primary)', borderRadius: '5px', padding: '5px', cursor: 'pointer' }} title="Copy Number">
                                                     <Copy size={16} />
                                                 </button>
                                             </div>
-                                            <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginTop: '5px' }}>{method.accountName}</div>
+                                            <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginTop: '5px' }}>{method.account_name}</div>
                                         </div>
                                         <div style={{ display: 'flex', gap: '10px' }}>
                                             <button onClick={() => setEditingMethodId(method.id)} style={{ color: 'var(--primary)', border: 'none', background: 'none', cursor: 'pointer' }}><Edit2 size={20} /></button>
                                             <button onClick={() => deleteMethod(method.id)} style={{ color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer' }}><Trash2 size={20} /></button>
                                         </div>
                                     </div>
-                                    {method.qrUrl && (
+                                    {method.qr_url && (
                                         <div style={{ marginTop: '15px' }}>
-                                            <img src={method.qrUrl} style={{ width: '150px', height: '150px', borderRadius: '12px', objectFit: 'cover', border: '1px solid #e2e8f0' }} alt="QR Code" />
+                                            <img src={method.qr_url} style={{ width: '150px', height: '150px', borderRadius: '12px', objectFit: 'cover', border: '1px solid #e2e8f0' }} alt="QR Code" />
                                         </div>
                                     )}
                                 </div>
@@ -602,23 +662,23 @@ const AdminDashboard = () => {
     const OrderHistory = () => {
         const stats = orders.reduce((acc, order) => {
             acc.totalOrders++;
-            acc.totalSales += Number(order.total || 0);
+            acc.totalSales += Number(order.total_amount || 0);
             if (order.status === 'Pending' || !order.status) acc.pendingOrders++;
             return acc;
         }, { totalOrders: 0, totalSales: 0, pendingOrders: 0 });
 
-        const updateOrderStatus = (orderId, newStatus) => {
-            const updatedOrders = orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o);
-            setOrders(updatedOrders);
-            localStorage.setItem('orders', JSON.stringify(updatedOrders));
+        const updateOrderStatus = async (orderId, newStatus) => {
+            const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
+            if (error) { console.error(error); showMessage('Error updating status on cloud.'); return; }
+            setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
             showMessage('Order status updated!');
         };
 
-        const deleteOrder = (orderId) => {
+        const deleteOrder = async (orderId) => {
             if (window.confirm('Are you sure you want to delete this order?')) {
-                const updatedOrders = orders.filter(o => o.id !== orderId);
-                setOrders(updatedOrders);
-                localStorage.setItem('orders', JSON.stringify(updatedOrders));
+                const { error } = await supabase.from('orders').delete().eq('id', orderId);
+                if (error) { console.error(error); showMessage('Error deleting from cloud.'); return; }
+                setOrders(orders.filter(o => o.id !== orderId));
                 showMessage('Order deleted.');
             }
         };
@@ -644,8 +704,8 @@ const AdminDashboard = () => {
                     </head>
                     <body>
                         <div class="center">
-                            ${storeSettings.logoUrl ? `<img src="${storeSettings.logoUrl}" class="logo">` : ''}
-                            <div style="font-weight:bold; font-size: 14px; text-transform: uppercase;">${storeSettings.storeName}</div>
+                            ${storeSettings.logo_url ? `<img src="${storeSettings.logo_url}" class="logo">` : ''}
+                            <div style="font-weight:bold; font-size: 14px; text-transform: uppercase;">${storeSettings.store_name}</div>
                             <div style="margin-top: 2px;">${storeSettings.address}</div>
                             <div>Tel: ${storeSettings.contact}</div>
                         </div>
@@ -653,17 +713,17 @@ const AdminDashboard = () => {
                         <div>
                             <strong>OR#:</strong> ${order.id.toString().slice(-6).toUpperCase()}<br>
                             <strong>Date:</strong> ${new Date(order.timestamp).toLocaleString()}<br>
-                            <strong>Type:</strong> ${order.orderType.toUpperCase()}<br>
-                            <strong>Cust:</strong> ${order.customer.name}
-                            ${order.customer.tableNumber ? `<br><strong>Table:</strong> ${order.customer.tableNumber}` : ''}
+                            <strong>Type:</strong> ${(order.order_type || 'Dine-in').toUpperCase()}<br>
+                            <strong>Cust:</strong> ${order.customer_details?.name}
+                            ${order.customer_details?.tableNumber ? `<br><strong>Table:</strong> ${order.customer_details.tableNumber}` : ''}
                         </div>
                         <div class="divider"></div>
                         <div style="font-weight:bold; margin-bottom: 5px;">ITEMS:</div>
-                        ${order.items.map(item => `<div class="item"><span>• ${item}</span></div>`).join('')}
+                        ${(order.items || []).map(item => `<div class="item"><span>• ${item}</span></div>`).join('')}
                         <div class="divider"></div>
                         <div class="item total">
                             <span>TOTAL</span>
-                            <span>₱${order.total}</span>
+                            <span>₱${order.total_amount}</span>
                         </div>
                         <div class="divider"></div>
                         <div class="center" style="margin-top: 10px; font-style: italic;">
@@ -710,7 +770,7 @@ const AdminDashboard = () => {
                             <div key={order.id || idx} style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '15px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', flexWrap: 'wrap', gap: '10px' }}>
                                     <div>
-                                        <span style={{ fontWeight: 800, color: 'var(--primary)', marginRight: '10px' }}>{order.orderType.toUpperCase()}</span>
+                                        <span style={{ fontWeight: 800, color: 'var(--primary)', marginRight: '10px' }}>{(order.order_type || 'N/A').toUpperCase()}</span>
                                         <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{new Date(order.timestamp).toLocaleString()}</span>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -739,10 +799,10 @@ const AdminDashboard = () => {
                                     </div>
                                 </div>
                                 <div style={{ marginBottom: '10px', fontSize: '0.95rem' }}>
-                                    <strong>{order.customer.name}</strong> • {order.paymentMethod}
-                                    {order.customer.phone && <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{order.customer.phone}</div>}
-                                    {order.customer.tableNumber && <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Table: {order.customer.tableNumber}</div>}
-                                    {order.customer.address && <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Address: {order.customer.address}</div>}
+                                    <strong>{order.customer_details?.name}</strong> • {order.payment_method}
+                                    {order.customer_details?.phone && <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{order.customer_details.phone}</div>}
+                                    {order.customer_details?.tableNumber && <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Table: {order.customer_details.tableNumber}</div>}
+                                    {order.customer_details?.address && <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Address: {order.customer_details.address}</div>}
                                 </div>
                                 <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '12px', fontSize: '0.9rem' }}>
                                     {order.items.map((item, i) => (
@@ -750,7 +810,7 @@ const AdminDashboard = () => {
                                     ))}
                                 </div>
                                 <div style={{ marginTop: '15px', textAlign: 'right', fontWeight: 800, fontSize: '1.1rem' }}>
-                                    Total Amount: ₱{order.total}
+                                    Total Amount: ₱{order.total_amount}
                                 </div>
                             </div>
                         ))}
@@ -762,43 +822,57 @@ const AdminDashboard = () => {
 
     // --- COMPONENT: STORE GENERAL SETTINGS ---
     const StoreGeneralSettings = () => {
-        const handleSave = (e) => {
+        const handleSave = async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
-            setStoreSettings({
-                ...storeSettings,
-                storeName: formData.get('storeName'),
+            const updateData = {
+                store_name: formData.get('storeName'),
                 address: formData.get('address'),
                 contact: formData.get('contact'),
-                openTime: formData.get('openTime'),
-                closeTime: formData.get('closeTime'),
-                manualStatus: formData.get('manualStatus')
-            });
+                open_time: formData.get('openTime'),
+                close_time: formData.get('closeTime'),
+                manual_status: formData.get('manualStatus')
+            };
+
+            const { data, error } = await supabase.from('store_settings').upsert({ id: storeSettings.id, ...updateData }).select().single();
+            if (error) { console.error(error); showMessage('Error saving to cloud.'); return; }
+            setStoreSettings(data);
             showMessage('General settings saved!');
         };
 
-        const handleBannerUpload = (e) => {
+        const handleBannerUpload = async (e) => {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onloadend = () => {
-                    setStoreSettings({ ...storeSettings, bannerImages: [...storeSettings.bannerImages, reader.result] });
+                reader.onloadend = async () => {
+                    const newBanners = [...(storeSettings.banner_images || []), reader.result];
+                    const { error } = await supabase.from('store_settings').update({ banner_images: newBanners }).eq('id', storeSettings.id);
+                    if (error) { console.error(error); showMessage('Error saving banner to cloud.'); return; }
+                    setStoreSettings({ ...storeSettings, banner_images: newBanners });
+                    showMessage('Banner uploaded!');
                 };
                 reader.readAsDataURL(file);
             }
         };
 
-        const removeBanner = (index) => {
-            const newBanners = storeSettings.bannerImages.filter((_, i) => i !== index);
-            setStoreSettings({ ...storeSettings, bannerImages: newBanners });
+        const removeBanner = async (index) => {
+            const newBanners = (storeSettings.banner_images || []).filter((_, i) => i !== index);
+            const { error } = await supabase.from('store_settings').update({ banner_images: newBanners }).eq('id', storeSettings.id);
+            if (error) { console.error(error); showMessage('Error removing from cloud.'); return; }
+            setStoreSettings({ ...storeSettings, banner_images: newBanners });
+            showMessage('Banner removed.');
         };
 
-        const handleLogoUpload = (e) => {
+        const handleLogoUpload = async (e) => {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onloadend = () => {
-                    setStoreSettings({ ...storeSettings, logoUrl: reader.result });
+                reader.onloadend = async () => {
+                    const logoUrl = reader.result;
+                    const { error } = await supabase.from('store_settings').update({ logo_url: logoUrl }).eq('id', storeSettings.id);
+                    if (error) { console.error(error); showMessage('Error saving logo to cloud.'); return; }
+                    setStoreSettings({ ...storeSettings, logo_url: logoUrl });
+                    showMessage('Logo updated!');
                 };
                 reader.readAsDataURL(file);
             }
@@ -817,7 +891,7 @@ const AdminDashboard = () => {
                             <div style={{ display: 'grid', gap: '15px' }}>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '8px', fontWeight: 600 }}>Manual Status Toggle</label>
-                                    <select name="manualStatus" defaultValue={storeSettings.manualStatus} style={inputStyle}>
+                                    <select name="manualStatus" defaultValue={storeSettings.manual_status} style={inputStyle}>
                                         <option value="auto">Auto (Based on Hours)</option>
                                         <option value="open">Always Open</option>
                                         <option value="closed">Always Closed</option>
@@ -826,11 +900,11 @@ const AdminDashboard = () => {
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                                     <div>
                                         <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '8px', fontWeight: 600 }}>Opening Time</label>
-                                        <input name="openTime" type="time" defaultValue={storeSettings.openTime} style={inputStyle} />
+                                        <input name="openTime" type="time" defaultValue={storeSettings.open_time} style={inputStyle} />
                                     </div>
                                     <div>
                                         <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '8px', fontWeight: 600 }}>Closing Time</label>
-                                        <input name="closeTime" type="time" defaultValue={storeSettings.closeTime} style={inputStyle} />
+                                        <input name="closeTime" type="time" defaultValue={storeSettings.close_time} style={inputStyle} />
                                     </div>
                                 </div>
                             </div>
@@ -841,7 +915,7 @@ const AdminDashboard = () => {
                                 <FileText size={20} /> Store Information
                             </h3>
                             <div style={{ display: 'grid', gap: '15px' }}>
-                                <div><label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '8px', fontWeight: 600 }}>Store Name</label><input name="storeName" defaultValue={storeSettings.storeName} style={inputStyle} /></div>
+                                <div><label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '8px', fontWeight: 600 }}>Store Name</label><input name="storeName" defaultValue={storeSettings.store_name} style={inputStyle} /></div>
                                 <div><label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '8px', fontWeight: 600 }}>Address</label><input name="address" defaultValue={storeSettings.address} style={inputStyle} /></div>
                                 <div><label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '8px', fontWeight: 600 }}>Contact Number</label><input name="contact" defaultValue={storeSettings.contact} style={inputStyle} /></div>
                             </div>
@@ -852,7 +926,7 @@ const AdminDashboard = () => {
                                 <Camera size={20} /> Store Logo
                             </h3>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                {storeSettings.logoUrl && <img src={storeSettings.logoUrl} style={{ width: '120px', height: '120px', objectFit: 'contain', border: '1px solid #ddd', borderRadius: '10px' }} />}
+                                {storeSettings.logo_url && <img src={storeSettings.logo_url} style={{ width: '120px', height: '120px', objectFit: 'contain', border: '1px solid #ddd', borderRadius: '10px' }} />}
                                 <input type="file" accept="image/*" onChange={handleLogoUpload} style={inputStyle} />
                             </div>
                         </div>
@@ -862,7 +936,7 @@ const AdminDashboard = () => {
                                 <ImageIcon size={20} /> Hero Slideshow Banners
                             </h3>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-                                {storeSettings.bannerImages.map((url, i) => (
+                                {(storeSettings.banner_images || []).map((url, i) => (
                                     <div key={i} style={{ position: 'relative' }}>
                                         <img src={url} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '12px' }} alt={`Banner ${i}`} />
                                         <button type="button" onClick={() => removeBanner(i)} style={{ position: 'absolute', top: '5px', right: '5px', background: 'rgba(239, 68, 68, 0.9)', color: 'white', border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} /></button>
