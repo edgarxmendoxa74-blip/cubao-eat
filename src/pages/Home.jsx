@@ -41,7 +41,7 @@ const Home = () => {
         manual_status: 'auto',
         open_time: '16:00',
         close_time: '01:00',
-        store_name: 'Oesters Cafe and Resto',
+        store_name: '',
         address: 'Poblacion, El Nido, Palawan',
         contact: '09563713967',
         logo_url: '',
@@ -275,7 +275,7 @@ const Home = () => {
         if (orderType === 'delivery') customerInfoStr += `\nPhone: ${customerDetails.phone}\nAddress: ${customerDetails.address}\nLandmark: ${customerDetails.landmark}`;
 
         const message = `
-Hello Oesters! I'd like to place an order:
+Hello! I'd like to place an order:
 
 Order Type: ${orderType.toUpperCase()}
 Payment Method: ${paymentMethod}
@@ -611,6 +611,11 @@ Thank you!`.trim();
                                     </div>
                                 </div>
                             )}
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', padding: '15px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                                <span style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-muted)' }}>Total Amount:</span>
+                                <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)' }}>₱{cartTotal}</span>
+                            </div>
 
                             <button className="btn-accent" onClick={handlePlaceOrder} style={{ width: '100%', padding: '18px', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontWeight: 800, fontSize: '1.1rem' }}>
                                 <MessageSquare size={22} /> Confirm Order

@@ -85,7 +85,7 @@ const AdminDashboard = () => {
             manual_status: 'auto', // auto, open, closed
             open_time: '16:00',
             close_time: '01:00',
-            store_name: 'Oesters Cafe and Resto',
+            store_name: '',
             address: 'Poblacion, El Nido, Palawan',
             contact: '09563713967',
             logo_url: '',
