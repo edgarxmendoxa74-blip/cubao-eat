@@ -1,17 +1,18 @@
 /* Global Styles */
 
 :root {
-  --primary: #D9232D;
-  --primary-dark: #B01C24;
-  --primary-light: #E85A60;
-  --accent: #FFB400;
-  --bg: #FDF8F5;
+  --primary: #fbbf24;
+  --primary-dark: #f59e0b;
+  --primary-light: #fcd34d;
+  --accent: #f59e0b;
+  --accent-light: #fbbf24;
+  --bg: #ffffff;
   --card-bg: #ffffff;
-  --text: #2C1810;
-  --text-muted: #6B5D57;
+  --text: #451a03;
+  --text-muted: #78350f;
   --error: #ef4444;
   --success: #10b981;
-  --border: rgba(166, 61, 64, 0.1);
+  --border: rgba(69, 26, 3, 0.1);
   --radius: 16px;
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
@@ -23,6 +24,65 @@ body {
   background-color: var(--bg);
   color: var(--text);
   line-height: 1.6;
+}
+
+/* Category Slider */
+.category-slider-wrapper {
+  position: sticky;
+  top: 70px;
+  /* Below header */
+  background: white;
+  z-index: 900;
+  border-bottom: 1px solid var(--border);
+  padding: 15px 0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.category-slider {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE/Edge */
+  padding: 0 5px;
+  scroll-behavior: smooth;
+}
+
+.category-slider::-webkit-scrollbar {
+  display: none;
+  /* Chrome/Safari */
+}
+
+.category-slide-btn {
+  white-space: nowrap;
+  padding: 10px 24px;
+  border-radius: 50px;
+  border: 1px solid var(--primary);
+  background: transparent;
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.category-slide-btn:hover {
+  background: var(--bg-cream);
+  transform: translateY(-2px);
+}
+
+.category-slide-btn.active {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+}
+
+/* Page Layout Fixes */
+.page-wrapper {
+  min-height: 100vh;
 }
 
 .container {
@@ -97,10 +157,11 @@ body {
 /* Hero Section */
 .hero-section {
   padding: 80px 0;
-  background: var(--primary);
-  color: #fff;
+  background: #ffffff;
+  color: var(--text);
   position: relative;
   overflow: hidden;
+  border-bottom: 1px solid var(--border);
 }
 
 .hero-split {
@@ -119,12 +180,12 @@ body {
   font-size: 3.5rem;
   line-height: 1.1;
   margin-bottom: 24px;
-  color: #fff;
+  color: var(--primary);
 }
 
 .hero-content p {
   font-size: 1.1rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-dark);
   margin-bottom: 40px;
   max-width: 500px;
 }
@@ -220,9 +281,9 @@ body {
 }
 
 .btn-accent {
-  background: var(--accent);
-  color: var(--primary-dark);
-  border: none;
+  background: #ffffff;
+  color: var(--primary);
+  border: 1px solid var(--primary);
   padding: 10px 20px;
   border-radius: 30px;
   font-weight: 700;
@@ -231,7 +292,7 @@ body {
 }
 
 .btn-accent:hover {
-  background: var(--accent-light);
+  background: var(--bg-cream);
 }
 
 /* Sticky Cart */
@@ -247,7 +308,7 @@ body {
   display: flex;
   align-items: center;
   gap: 20px;
-  box-shadow: 0 10px 25px rgba(166, 61, 64, 0.3);
+  box-shadow: 0 10px 25px rgba(245, 158, 11, 0.3);
   z-index: 1000;
   cursor: pointer;
   transition: transform 0.3s;

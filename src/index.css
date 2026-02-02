@@ -1,20 +1,20 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800;900&display=swap');
 
 :root {
-  --primary: #D9232D;
-  /* Vibrant Food Red */
-  --primary-light: #E85A60;
-  --primary-dark: #B01C24;
-  --accent: #FFB400;
-  /* Golden Yellow */
-  --accent-light: #FFC947;
-  --bg-cream: #FDF8F5;
-  /* Soft Cream */
-  --text-dark: #2C1810;
-  /* Dark Coffee Brown */
-  --text-muted: #5C4A44;
+  --primary: #fbbf24;
+  /* Vibrant Yellow */
+  --primary-light: #fcd34d;
+  --primary-dark: #f59e0b;
+  --accent: #f59e0b;
+  /* Deep Yellow / Gold */
+  --accent-light: #fbbf24;
+  --bg-cream: #ffffff;
+  /* Pure White */
+  --text-dark: #451a03;
+  /* Deep Amber Brown for contrast */
+  --text-muted: #78350f;
   --white: #ffffff;
-  --border: rgba(166, 61, 64, 0.1);
+  --border: rgba(120, 53, 15, 0.1);
   --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
   --radius: 12px;

@@ -1,6 +1,6 @@
-# Oesters Cafe and Resto
+# Fiesta Kainan sa Cubao
 
-A premium web application for Oesters Cafe and Resto, specializing in fresh oysters, artisanal coffee, and a vibrant dining experience.
+A premium web application for Fiesta Kainan sa Cubao, specializing in authentic Filipino dining and a vibrant community experience.
 
 ## Features
 - **Dynamic Menu**: Real-time menu management with categories, variations, and add-ons.

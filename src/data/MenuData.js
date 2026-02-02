@@ -1,100 +1,56 @@
 export const categories = [
-    { id: 'oysters', name: 'Fresh Oysters' },
-    { id: 'wings', name: 'Flavored Wings' },
-    { id: 'meals', name: 'Main Course' },
-    { id: 'coffee', name: 'Specialty Coffee' },
-    { id: 'desserts', name: 'Sweet Treats' },
+    { id: 'packed-meals', name: 'Packed Meals', sort_order: 1 },
+    { id: 'party-trays', name: 'Party Trays', sort_order: 2 },
+    { id: 'special-rice', name: 'Special Fried Rice', sort_order: 3 },
+    { id: 'desserts', name: 'Desserts', sort_order: 4 },
 ];
 
 export const menuItems = [
-    // Oysters
+    // Packed Meals
     {
         id: 1,
-        categoryId: 'oysters',
-        name: 'Fresh Baked Oysters',
-        description: 'Juicy oysters baked with cheese and garlic butter.',
-        price: 250,
-        promoPrice: 220,
-        image: 'https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?auto=format&fit=crop&w=400&q=80',
-        variations: [
-            { name: 'Standard (8pcs)', price: 250 },
-            { name: 'Family (12pcs)', price: 350 }
-        ],
-        flavors: ['Cheese & Garlic', 'Classic Steamed'],
-        addons: [
-            { name: 'Extra Cheese', price: 30 },
-            { name: 'Extra Garlic Butter', price: 20 }
-        ]
+        categoryId: 'packed-meals',
+        name: 'Classic Chicken Inasal Meal',
+        description: 'Grilled chicken inasal served with rice and atchara.',
+        price: 150,
+        image: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=400&q=80',
     },
     {
         id: 2,
-        categoryId: 'oysters',
-        name: 'Oysters Rockefeller',
-        description: 'Baked oysters with spinach, herbs, and breadcrumbs.',
-        price: 280,
-        image: 'https://images.unsplash.com/photo-1626202346513-e8d9a4cccc9d?auto=format&fit=crop&w=400&q=80',
-        variations: [
-            { name: 'Standard (8pcs)', price: 280 },
-            { name: 'Platter (16pcs)', price: 520 }
-        ]
+        categoryId: 'packed-meals',
+        name: 'Pork Liempo Meal',
+        description: 'Grilled pork belly served with rice.',
+        price: 165,
+        image: 'https://images.unsplash.com/photo-1544124499-58ec5067425f?auto=format&fit=crop&w=400&q=80',
     },
-    // Wings
+    // Party Trays
     {
         id: 3,
-        categoryId: 'wings',
-        name: 'Garlic Parmesan Wings',
-        description: 'Crispy wings tossed in garlic and parmesan cheese.',
-        price: 180,
-        promoPrice: 165,
-        image: 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?auto=format&fit=crop&w=400&q=80',
-        variations: [
-            { name: '6pcs', price: 180 },
-            { name: '12pcs', price: 340 }
-        ],
-        addons: [
-            { name: 'Ranch Dip', price: 25 }
-        ]
+        categoryId: 'party-trays',
+        name: 'Pancit Guisado (Party Tray)',
+        description: 'Traditional Filipino stir-fried noodles, good for 8-10 persons.',
+        price: 850,
+        image: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=400&q=80',
     },
     {
         id: 4,
-        categoryId: 'wings',
-        name: 'Spicy Buffalo Wings',
-        description: 'Classic spicy wings served with dip.',
-        price: 180,
-        image: 'https://images.unsplash.com/photo-1527477396000-e27163b481c2?auto=format&fit=crop&w=400&q=80',
-        variations: [
-            { name: '6pcs', price: 180 },
-            { name: '12pcs', price: 340 }
-        ],
-        flavors: ['Mild', 'Hot', 'Atomic']
+        categoryId: 'party-trays',
+        name: 'Lumpiang Shanghai (Tray)',
+        description: 'Crispy pork spring rolls, 50 pieces per tray.',
+        price: 750,
+        image: 'https://images.unsplash.com/photo-1623938986311-73bc3a99e9c7?auto=format&fit=crop&w=400&q=80',
     },
-    // Coffee
+    // Special Fried Rice
     {
         id: 5,
-        categoryId: 'coffee',
-        name: 'Signature Latte',
-        description: 'Smooth espresso with steamed milk and cream.',
-        price: 120,
-        image: 'https://images.unsplash.com/photo-1541167760496-162955ed8a9f?auto=format&fit=crop&w=400&q=80',
+        categoryId: 'special-rice',
+        name: 'Fiesta Special Fried Rice',
+        description: 'Loaded with mixed vegetables, shrimp, and meat toppings.',
+        price: 180,
+        image: 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=400&q=80',
         variations: [
-            { name: 'Hot (12oz)', price: 120 },
-            { name: 'Iced (16oz)', price: 140 }
-        ],
-        addons: [
-            { name: 'Caramel Drizzle', price: 20 },
-            { name: 'Vanilla Syrup', price: 20 }
-        ]
-    },
-    {
-        id: 6,
-        categoryId: 'coffee',
-        name: 'Iced Americano',
-        description: 'Refreshing bold coffee over ice.',
-        price: 90,
-        image: 'https://images.unsplash.com/photo-1517701604599-bb29b565094d?auto=format&fit=crop&w=400&q=80',
-        variations: [
-            { name: 'Standard', price: 90 },
-            { name: 'Upsize', price: 110 }
+            { name: 'Regular', price: 180 },
+            { name: 'Family Size', price: 320 }
         ]
     }
 ];

@@ -28,7 +28,7 @@ const Home = () => {
     const [cart, setCart] = useState([]);
     const [items, setItems] = useState([]);
     const [categories, setCategories] = useState([]);
-    const [activeCategory, setActiveCategory] = useState('oysters'); // Will update after load
+    const [activeCategory, setActiveCategory] = useState('packed-meals'); // Updated for Fiesta Kainan
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
     const [paymentSettings, setPaymentSettings] = useState([]);
@@ -92,8 +92,12 @@ const Home = () => {
                     setCategories(parsed);
                     if (parsed.length > 0) setActiveCategory(parsed[0].id);
                 } else {
-                    setCategories([{ id: 'oysters', name: 'Oysters' }, { id: 'coffee', name: 'Coffee' }, { id: 'pasta', name: 'Pasta' }]);
-                    setActiveCategory('oysters');
+                    setCategories([
+                        { id: 'packed-meals', name: 'Packed Meals' },
+                        { id: 'party_trays', name: 'Party Trays' },
+                        { id: 'special-rice', name: 'Special Fried Rice' }
+                    ]);
+                    setActiveCategory('packed-meals');
                 }
             }
 
@@ -299,7 +303,7 @@ TOTAL AMOUNT: ₱${cartTotal}
 
 Thank you!`.trim();
 
-        const messengerUrl = `https://m.me/oesterscafeandresto?text=${encodeURIComponent(message)}`;
+        const messengerUrl = `https://m.me/fiestakainansacubao?text=${encodeURIComponent(message)}`;
         window.open(messengerUrl, '_blank');
 
         // Optionally clear cart
@@ -320,7 +324,7 @@ Thank you!`.trim();
         <div className="page-wrapper">
             {/* Store Closed Overlay */}
             {!isOpen && (
-                <div style={{ background: '#ef4444', color: 'white', textAlign: 'center', padding: '12px', position: 'sticky', top: 0, zIndex: 1200, fontWeight: 700, fontSize: '0.9rem' }}>
+                <div style={{ background: 'var(--accent)', color: 'white', textAlign: 'center', padding: '12px', position: 'sticky', top: 0, zIndex: 1200, fontWeight: 700, fontSize: '0.9rem' }}>
                     <Clock size={16} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
                     WE ARE CURRENTLY CLOSED. Our operating hours are {formatTime(storeSettings.open_time) || '4:00 PM'} to {formatTime(storeSettings.close_time) || '1:00 AM'}. Orders are disabled.
                 </div>
@@ -329,7 +333,7 @@ Thank you!`.trim();
             <header className="app-header">
                 <div className="container header-container">
                     <Link to="/" className="brand">
-                        <img src={storeSettings.logo_url || "/logo.png"} alt="Oesters Logo" style={{ height: '50px' }} />
+                        <img src={storeSettings.logo_url || "/logo.png"} alt="Fiesta Kainan sa Cubao Logo" style={{ height: '50px' }} />
                     </Link>
 
                     <nav className="header-nav" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
@@ -344,13 +348,32 @@ Thank you!`.trim();
                 </div>
             </header>
 
+            {/* Sticky Category Slider */}
+            <div className="category-slider-wrapper">
+                <div className="container">
+                    <div className="category-slider">
+                        {categories.map(cat => (
+                            <button
+                                key={cat.id}
+                                className={`category-slide-btn ${activeCategory === cat.id ? 'active' : ''}`}
+                                onClick={() => {
+                                    setActiveCategory(cat.id);
+                                    document.getElementById('menu')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                }}
+                            >
+                                {cat.name}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
             {/* Hero Section */}
             <section className="hero-section" style={{ overflow: 'hidden' }}>
                 <div className="container hero-split">
                     <div className="hero-content animate-fade-up">
-                        <h1>Quality in <span style={{ color: 'var(--accent)' }}>every bite</span></h1>
-                        <p>Experience our specialty dishes and coffee. We bring you the best flavors and a welcoming atmosphere.</p>
-                        {/* Explore Menu button removed */}
+                        <h1>Fiesta Kainan <span style={{ color: 'var(--accent)' }}>sa Cubao</span></h1>
+                        <p>Specializing in <strong>Packed Meals</strong>, <strong>Party Trays</strong>, and <strong>Special Fried Rice</strong>. Experience the authentic taste of a Filipino fiesta in every bite!</p>
                     </div>
                     <div className="hero-image-container">
                         {(storeSettings.banner_images || []).map((url, i) => (
@@ -380,20 +403,6 @@ Thank you!`.trim();
                 <div style={{ textAlign: 'center', marginBottom: '50px' }}>
                     <h2 style={{ fontSize: '3rem', marginBottom: '10px', color: 'var(--primary)' }}>Our Menu</h2>
                     <p style={{ color: 'var(--text-muted)' }}>Pick your favorites and add them to your cart.</p>
-                </div>
-
-                {/* Category Tabs */}
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '40px', flexWrap: 'wrap' }}>
-                    {categories.map(cat => (
-                        <button key={cat.id} className={activeCategory === cat.id ? 'btn-primary' : 'btn-accent'}
-                            style={{
-                                background: activeCategory === cat.id ? 'var(--primary)' : 'transparent',
-                                color: activeCategory === cat.id ? 'white' : 'var(--primary)',
-                                border: '1px solid var(--primary)', borderRadius: '20px', padding: '8px 20px'
-                            }}
-                            onClick={() => setActiveCategory(cat.id)}
-                        >{cat.name}</button>
-                    ))}
                 </div>
 
                 <div className="menu-grid">

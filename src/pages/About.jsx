@@ -5,7 +5,7 @@ import { supabase } from '../supabaseClient';
 
 const About = () => {
     const [storeSettings, setStoreSettings] = useState({
-        store_name: 'Oesters',
+        store_name: 'Fiesta Kainan sa Cubao',
         logo_url: '/logo.png'
     });
 
@@ -22,7 +22,7 @@ const About = () => {
             <header className="app-header">
                 <div className="container header-container">
                     <Link to="/" className="brand">
-                        <img src={storeSettings.logo_url || "/logo.png"} alt="Oesters Logo" style={{ height: '50px' }} />
+                        <img src={storeSettings.logo_url || "/logo.png"} alt="Fiesta Kainan sa Cubao Logo" style={{ height: '50px' }} />
 
                     </Link>
                     <nav className="header-nav" style={{ display: 'flex', gap: '20px' }}>

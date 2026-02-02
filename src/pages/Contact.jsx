@@ -5,11 +5,11 @@ import { supabase } from '../supabaseClient';
 
 const Contact = () => {
     const [storeSettings, setStoreSettings] = useState({
-        store_name: 'Oesters',
-        address: 'Philippines',
-        contact: '09563713967',
+        store_name: 'Fiesta Kainan sa Cubao',
+        address: 'Food Court, Farmers Plaza, General Araneta, Cubao, Quezon City',
+        contact: '0922 811 2858',
         open_time: '10:00',
-        close_time: '01:00',
+        close_time: '21:00',
         logo_url: '/logo.png'
     });
 
@@ -35,7 +35,7 @@ const Contact = () => {
             <header className="app-header">
                 <div className="container header-container">
                     <Link to="/" className="brand">
-                        <img src={storeSettings.logo_url || "/logo.png"} alt="Oesters Logo" style={{ height: '50px' }} />
+                        <img src={storeSettings.logo_url || "/logo.png"} alt="Fiesta Kainan sa Cubao Logo" style={{ height: '50px' }} />
 
                     </Link>
                     <nav className="header-nav" style={{ display: 'flex', gap: '20px' }}>
@@ -89,11 +89,11 @@ const Contact = () => {
                     <h2 style={{ fontSize: '2rem', marginBottom: '20px' }}>Stay Connected</h2>
                     <p style={{ marginBottom: '40px', color: 'rgba(255,255,255,0.8)' }}>Follow us on social media for daily specials and events.</p>
                     <div style={{ display: 'flex', justifyContent: 'center', gap: '20px' }}>
-                        <a href="https://www.facebook.com/oesterscafeandresto" target="_blank" rel="noopener noreferrer" style={{ background: 'white', color: 'var(--primary)', padding: '15px 30px', borderRadius: '50px', textDecoration: 'none', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <a href="https://www.facebook.com/profile.php?id=61579032505526" target="_blank" rel="noopener noreferrer" style={{ background: 'white', color: 'var(--primary)', padding: '15px 30px', borderRadius: '50px', textDecoration: 'none', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <Facebook size={20} />
                             Facebook
                         </a>
-                        <a href="mailto:contact@oesters.com" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', padding: '15px 30px', borderRadius: '50px', textDecoration: 'none', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <a href="mailto:contact@fiestakainan.com" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', padding: '15px 30px', borderRadius: '50px', textDecoration: 'none', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <Mail size={20} />
                             Email Us
                         </a>

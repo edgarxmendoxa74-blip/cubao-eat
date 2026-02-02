@@ -1150,7 +1150,7 @@ const AdminDashboard = () => {
             <aside style={{ width: '260px', background: 'var(--primary)', color: 'white', padding: '30px 20px', position: 'fixed', height: '100vh' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '50px', paddingLeft: '10px' }}>
                     <Package size={28} color="var(--accent)" />
-                    <span style={{ fontSize: '1.4rem', fontWeight: 700, fontFamily: 'Playfair Display' }}>Oesters</span>
+                    <span style={{ fontSize: '1.4rem', fontWeight: 700, fontFamily: 'Playfair Display' }}>Fiesta Kainan sa Cubao</span>
                 </div>
 
                 <nav style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
