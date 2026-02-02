@@ -303,7 +303,7 @@ TOTAL AMOUNT: ₱${cartTotal}
 
 Thank you!`.trim();
 
-        const messengerUrl = `https://m.me/fiestakainansacubao?text=${encodeURIComponent(message)}`;
+        const messengerUrl = `https://m.me/61579032505526?text=${encodeURIComponent(message)}`;
         window.open(messengerUrl, '_blank');
 
         // Optionally clear cart
