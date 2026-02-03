@@ -86,15 +86,8 @@ const MenuItem = React.memo(({ item, isOpen, openProductSelection }) => (
 
 const Home = () => {
     const [cart, setCart] = useState([]);
-    const [fetchError, setFetchError] = useState(false);
-
     // INSTANT LOAD: Initialize states from LocalStorage or Fallback
-    const [categories, setCategories] = useState(() => {
-        const allCategory = { id: 'all', name: 'All' };
-        const saved = getLocalData('categories', initialCategories);
-        return [allCategory, ...saved];
-    });
-
+    const [categories, setCategories] = useState(() => getLocalData('categories', initialCategories));
     const [items, setItems] = useState(() => normalizeItems(getLocalData('menuItems', initialMenuItems)));
 
     // Only show loading if we have ABSOLUTELY no items (rare if initialMenuItems exists)
@@ -102,7 +95,7 @@ const Home = () => {
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [orderSuccess, setOrderSuccess] = useState(false);
-    const [activeCategory, setActiveCategory] = useState('all');
+    const [activeCategory, setActiveCategory] = useState(() => categories[0]?.id || '');
     const [isCartOpen, setIsCartOpen] = useState(false);
     const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
@@ -198,9 +191,11 @@ const Home = () => {
                 if (catErr || itemErr) throw new Error("Supabase fetch failed");
 
                 if (catData && catData.length > 0) {
-                    const allCategory = { id: 'all', name: 'All' };
-                    setCategories([allCategory, ...catData]);
+                    setCategories(catData);
                     localStorage.setItem('categories', JSON.stringify(catData));
+                    if (!activeCategory) {
+                        setActiveCategory(catData[0].id);
+                    }
                 }
 
                 if (itemData && itemData.length > 0) {
@@ -408,7 +403,7 @@ ${info}`.trim();
 
     // MEMO: Filtered items memoized to prevent expensive re-filtering
     const filteredItems = useMemo(() => {
-        if (activeCategory === 'all') return items;
+        if (!activeCategory || activeCategory === 'all') return items;
         return items.filter(item => item.category_id === activeCategory);
     }, [items, activeCategory]);
 
@@ -474,9 +469,12 @@ ${info}`.trim();
                                 alt={`Hero Banner ${i + 1}`}
                                 className="hero-image"
                                 style={{
-                                    position: i === 0 ? 'relative' : 'absolute',
+                                    position: 'absolute',
                                     top: 0,
                                     left: 0,
+                                    width: '100%',
+                                    height: '100%',
+                                    objectFit: 'cover',
                                     opacity: currentBannerIndex === i ? 1 : 0,
                                     transition: 'opacity 1s ease-in-out',
                                     zIndex: currentBannerIndex === i ? 1 : 0
