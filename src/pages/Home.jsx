@@ -143,7 +143,25 @@ const Home = () => {
 
     const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
 
-    // Store status logic - Fixed to use PHT (Asia/Manila)
+    const getOrderType = (id) => {
+        const type = orderTypes.find(t => t.id === id);
+        return type ? type.name : '';
+    };
+
+    const isDeliveryType = (id) => {
+        const name = getOrderType(id).toLowerCase();
+        return id === 'cdf90bbb-4ab0-4159-9e3c-4d0f54572483' || name.includes('delivery');
+    };
+
+    const isDineInType = (id) => {
+        const name = getOrderType(id).toLowerCase();
+        return id === 'dine-in' || name.includes('dine-in');
+    };
+
+    const isPickupType = (id) => {
+        const name = getOrderType(id).toLowerCase();
+        return id === 'pickup' || name.includes('take out') || name.includes('pickup');
+    };
     const isStoreOpen = () => {
         if (storeSettings.manual_status === 'open') return true;
         if (storeSettings.manual_status === 'closed') return false;
@@ -213,8 +231,8 @@ const Home = () => {
                 }
 
                 // Other settings
-                if (payData) { setPaymentSettings(payData); setLocalData('paymentSettings', payData); }
-                if (typeData) { setOrderTypes(typeData); setLocalData('orderTypes', typeData); }
+                if (payData && payData.length > 0) { setPaymentSettings(payData); setLocalData('paymentSettings', payData); }
+                if (typeData && typeData.length > 0) { setOrderTypes(typeData); setLocalData('orderTypes', typeData); }
                 if (storeData) {
                     setStoreSettings(prev => ({
                         ...prev,
@@ -332,9 +350,11 @@ const Home = () => {
         }
 
         const { name, phone, table_number, address, pickup_time } = customerDetails;
-        if (orderType === 'dine-in' && (!name || !table_number)) { alert('Please provide your Name and Table Number.'); return; }
-        if (orderType === 'pickup' && (!name || !phone || !pickup_time)) { alert('Please provide Name, Phone Number, and Pickup Time.'); return; }
-        if (orderType === 'delivery' && (!name || !phone || !address)) { alert('Please provide Name, Phone Number, and Delivery Address.'); return; }
+        const typeName = getOrderType(orderType).toLowerCase();
+
+        if (isDineInType(orderType) && (!name || !table_number)) { alert('Please provide your Name and Table Number.'); return; }
+        if (isPickupType(orderType) && (!name || !phone || !pickup_time)) { alert('Please provide Name, Phone Number, and Pickup Time.'); return; }
+        if (isDeliveryType(orderType) && (!name || !phone || !address)) { alert('Please provide Name, Phone Number, and Delivery Address.'); return; }
 
         if (!paymentMethod) { alert('Please select a payment method.'); return; }
 
@@ -375,17 +395,18 @@ const Home = () => {
 
             // Prepare Messenger message (simplified to avoid spam detection)
             const summary = itemDetails.join('\n');
-            let info = `Name: ${customerDetails.name}`;
-            if (orderType === 'dine-in') info += ` | Table: ${customerDetails.table_number}`;
-            if (orderType === 'pickup') info += ` | Phone: ${customerDetails.phone} | Time: ${customerDetails.pickup_time}`;
-            if (orderType === 'delivery') info += ` | Phone: ${customerDetails.phone} | Address: ${customerDetails.address}`;
+            const typeName = getOrderType(orderType);
+            let info = `${isDeliveryType(orderType) ? 'Designated Name' : 'Name'}: ${customerDetails.name}`;
+            if (isDineInType(orderType)) info += ` | Table: ${customerDetails.table_number}`;
+            if (isPickupType(orderType)) info += ` | Phone: ${customerDetails.phone} | Time: ${customerDetails.pickup_time}`;
+            if (isDeliveryType(orderType)) info += ` | Phone: ${customerDetails.phone} | Address: ${customerDetails.address}`;
 
             const message = `Hi! New order for ${customerDetails.name}:
             
 ${summary}
 
 Total: P${cartTotal}
-Type: ${orderType}
+Type: ${typeName}
 ${info}`.trim();
 
             const messengerUrl = `https://m.me/61579032505526?text=${encodeURIComponent(message)}`;
@@ -468,7 +489,7 @@ ${info}`.trim();
             </div>
 
             {/* Hero Section */}
-            <section className="hero-section" style={{ overflow: 'hidden' }}>
+            <section className="hero-section">
                 <div className="container hero-split">
                     <div className="hero-content">
                         <h1>Fiesta Kainan <span style={{ color: 'var(--accent)' }}>sa Cubao</span></h1>
@@ -480,22 +501,38 @@ ${info}`.trim();
                                 key={i}
                                 src={url}
                                 alt={`Hero Banner ${i + 1}`}
-                                className="hero-image"
+                                className={`hero-image ${currentBannerIndex === i ? 'active' : ''}`}
+                                loading={i === 0 ? "eager" : "lazy"}
+                                fetchPriority={i === 0 ? "high" : "auto"}
                                 style={{
                                     position: 'absolute',
                                     top: 0,
                                     left: 0,
-                                    width: '100%',
-                                    height: '100%',
-                                    objectFit: 'cover',
                                     opacity: currentBannerIndex === i ? 1 : 0,
-                                    transition: 'opacity 1s ease-in-out',
                                     zIndex: currentBannerIndex === i ? 1 : 0
                                 }}
                             />
                         ))}
-                        <button onClick={prevBanner} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.7)', border: 'none', borderRadius: '50%', padding: '10px', cursor: 'pointer', zIndex: 10 }}><ChevronLeft size={24} color="var(--primary)" /></button>
-                        <button onClick={nextBanner} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.7)', border: 'none', borderRadius: '50%', padding: '10px', cursor: 'pointer', zIndex: 10 }}><ChevronRight size={24} color="var(--primary)" /></button>
+
+                        {/* Navigation Arrows */}
+                        <button className="hero-nav-btn prev" onClick={prevBanner} aria-label="Previous image">
+                            <ChevronLeft size={24} />
+                        </button>
+                        <button className="hero-nav-btn next" onClick={nextBanner} aria-label="Next image">
+                            <ChevronRight size={24} />
+                        </button>
+
+                        {/* Indicators (Dots) */}
+                        <div className="hero-indicators">
+                            {(storeSettings.banner_images || []).map((_, i) => (
+                                <button
+                                    key={i}
+                                    className={`indicator-dot ${currentBannerIndex === i ? 'active' : ''}`}
+                                    onClick={() => setCurrentBannerIndex(i)}
+                                    aria-label={`Go to slide ${i + 1}`}
+                                />
+                            ))}
+                        </div>
                     </div>
                 </div>
             </section>
@@ -763,12 +800,12 @@ ${info}`.trim();
                                     {orderType && (
                                         <div style={{ marginBottom: '30px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                                <div><label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '5px', fontWeight: 600 }}>Full Name</label><input type="text" value={customerDetails.name} onChange={(e) => setCustomerDetails({ ...customerDetails, name: e.target.value })} style={{ padding: '12px', width: '100%', borderRadius: '10px', border: '1px solid #e2e8f0' }} /></div>
-                                                {orderType === 'dine-in' && <div><label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '5px', fontWeight: 600 }}>Table Number</label><input type="text" value={customerDetails.table_number} onChange={(e) => setCustomerDetails({ ...customerDetails, table_number: e.target.value })} style={{ padding: '12px', width: '100%', borderRadius: '10px', border: '1px solid #e2e8f0' }} /></div>}
-                                                {orderType !== 'dine-in' && <div><label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '5px', fontWeight: 600 }}>Phone</label><input type="tel" value={customerDetails.phone} onChange={(e) => setCustomerDetails({ ...customerDetails, phone: e.target.value })} style={{ padding: '12px', width: '100%', borderRadius: '10px', border: '1px solid #e2e8f0' }} /></div>}
-                                                {orderType === 'pickup' && <div><label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '5px', fontWeight: 600 }}>Time</label><input type="time" value={customerDetails.pickup_time} onChange={(e) => setCustomerDetails({ ...customerDetails, pickup_time: e.target.value })} style={{ padding: '12px', width: '100%', borderRadius: '10px', border: '1px solid #e2e8f0' }} /></div>}
-                                                {orderType === 'delivery' && <div><label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '5px', fontWeight: 600 }}>Address</label><textarea value={customerDetails.address} onChange={(e) => setCustomerDetails({ ...customerDetails, address: e.target.value })} style={{ padding: '12px', width: '100%', borderRadius: '10px', border: '1px solid #e2e8f0' }} /></div>}
-                                                {!['dine-in', 'pickup', 'delivery'].includes(orderType) && <div><label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '5px', fontWeight: 600 }}>Notes / Instructions</label><textarea value={customerDetails.landmark} onChange={(e) => setCustomerDetails({ ...customerDetails, landmark: e.target.value })} placeholder="Any specific requests..." style={{ padding: '12px', width: '100%', borderRadius: '10px', border: '1px solid #e2e8f0' }} /></div>}
+                                                <div><label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '5px', fontWeight: 600 }}>{isDeliveryType(orderType) ? 'Designated Name' : 'Full Name'}</label><input type="text" value={customerDetails.name} onChange={(e) => setCustomerDetails({ ...customerDetails, name: e.target.value })} style={{ padding: '12px', width: '100%', borderRadius: '10px', border: '1px solid #e2e8f0' }} /></div>
+                                                {isDineInType(orderType) && <div><label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '5px', fontWeight: 600 }}>Table Number</label><input type="text" value={customerDetails.table_number} onChange={(e) => setCustomerDetails({ ...customerDetails, table_number: e.target.value })} style={{ padding: '12px', width: '100%', borderRadius: '10px', border: '1px solid #e2e8f0' }} /></div>}
+                                                {!isDineInType(orderType) && <div><label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '5px', fontWeight: 600 }}>Phone</label><input type="tel" value={customerDetails.phone} onChange={(e) => setCustomerDetails({ ...customerDetails, phone: e.target.value })} style={{ padding: '12px', width: '100%', borderRadius: '10px', border: '1px solid #e2e8f0' }} /></div>}
+                                                {isPickupType(orderType) && <div><label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '5px', fontWeight: 600 }}>Time</label><input type="time" value={customerDetails.pickup_time} onChange={(e) => setCustomerDetails({ ...customerDetails, pickup_time: e.target.value })} style={{ padding: '12px', width: '100%', borderRadius: '10px', border: '1px solid #e2e8f0' }} /></div>}
+                                                {isDeliveryType(orderType) && <div><label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '5px', fontWeight: 600 }}>Address</label><textarea value={customerDetails.address} onChange={(e) => setCustomerDetails({ ...customerDetails, address: e.target.value })} style={{ padding: '12px', width: '100%', borderRadius: '10px', border: '1px solid #e2e8f0' }} /></div>}
+                                                {!isDineInType(orderType) && !isPickupType(orderType) && !isDeliveryType(orderType) && <div><label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '5px', fontWeight: 600 }}>Notes / Instructions</label><textarea value={customerDetails.landmark} onChange={(e) => setCustomerDetails({ ...customerDetails, landmark: e.target.value })} placeholder="Any specific requests..." style={{ padding: '12px', width: '100%', borderRadius: '10px', border: '1px solid #e2e8f0' }} /></div>}
                                             </div>
                                         </div>
                                     )}
