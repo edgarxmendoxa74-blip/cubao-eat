@@ -213,6 +213,13 @@ body {
   padding: 30px 0;
 }
 
+@media (max-width: 600px) {
+  .menu-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
 .menu-item-card {
   background: var(--card-bg);
   border-radius: var(--radius);
@@ -237,6 +244,12 @@ body {
   padding: 15px;
 }
 
+@media (max-width: 600px) {
+  .menu-item-info {
+    padding: 10px;
+  }
+}
+
 .menu-item-name {
   font-family: 'Playfair Display', serif;
   font-size: 1.25rem;
@@ -244,11 +257,34 @@ body {
   color: var(--primary);
 }
 
+@media (max-width: 600px) {
+  .menu-item-name {
+    font-size: 1rem;
+    margin-bottom: 4px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
 .menu-item-desc {
   font-size: 0.9rem;
   color: var(--text-muted);
   margin-bottom: 16px;
   min-height: 2.7em;
+}
+
+@media (max-width: 600px) {
+  .menu-item-desc {
+    font-size: 0.75rem;
+    margin-bottom: 10px;
+    min-height: auto;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 }
 
 .menu-item-footer {
@@ -261,6 +297,12 @@ body {
   font-weight: 700;
   color: var(--text);
   font-size: 1.1rem;
+}
+
+@media (max-width: 600px) {
+  .menu-item-price {
+    font-size: 0.95rem;
+  }
 }
 
 /* Button Styles */
