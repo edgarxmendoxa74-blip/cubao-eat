@@ -41,6 +41,15 @@ const getLocalData = (key, fallback) => {
     }
 };
 
+// Helper to safely save to localStorage
+const setLocalData = (key, data) => {
+    try {
+        localStorage.setItem(key, JSON.stringify(data));
+    } catch (e) {
+        console.warn(`Failed to save ${key} to localStorage:`, e.name === 'QuotaExceededError' ? 'Quota exceeded' : e.message);
+    }
+};
+
 // Normalize menu items (ensure category_id is used for both fallback and DB)
 const normalizeItems = (items) => {
     return items.map(item => ({
@@ -85,7 +94,7 @@ const MenuItem = React.memo(({ item, isOpen, openProductSelection }) => (
 ));
 
 const Home = () => {
-    const [cart, setCart] = useState([]);
+    const [cartItems, setCartItems] = useState([]);
     // INSTANT LOAD: Initialize states from LocalStorage or Fallback
     const [categories, setCategories] = useState(() => getLocalData('categories', initialCategories));
     const [items, setItems] = useState(() => normalizeItems(getLocalData('menuItems', initialMenuItems)));
@@ -192,7 +201,7 @@ const Home = () => {
 
                 if (catData && catData.length > 0) {
                     setCategories(catData);
-                    localStorage.setItem('categories', JSON.stringify(catData));
+                    setLocalData('categories', catData);
                     if (!activeCategory) {
                         setActiveCategory(catData[0].id);
                     }
@@ -200,19 +209,19 @@ const Home = () => {
 
                 if (itemData && itemData.length > 0) {
                     setItems(normalizeItems(itemData));
-                    localStorage.setItem('menuItems', JSON.stringify(itemData));
+                    setLocalData('menuItems', itemData);
                 }
 
                 // Other settings
-                if (payData) { setPaymentSettings(payData); localStorage.setItem('paymentSettings', JSON.stringify(payData)); }
-                if (typeData) { setOrderTypes(typeData); localStorage.setItem('orderTypes', JSON.stringify(typeData)); }
+                if (payData) { setPaymentSettings(payData); setLocalData('paymentSettings', payData); }
+                if (typeData) { setOrderTypes(typeData); setLocalData('orderTypes', typeData); }
                 if (storeData) {
                     setStoreSettings(prev => ({
                         ...prev,
                         ...storeData,
                         banner_images: (storeData.banner_images && storeData.banner_images.length > 0) ? storeData.banner_images : prev.banner_images
                     }));
-                    localStorage.setItem('storeSettings', JSON.stringify(storeData));
+                    setLocalData('storeSettings', storeData);
                 }
 
             } catch (error) {
@@ -275,7 +284,7 @@ const Home = () => {
 
     const addToCart = (item, options) => {
         const cartItemId = `${item.id}-${options.variation?.name || ''}-${options.flavors.sort().join(',')}-${options.addons.map(a => a.name).join(',')}`;
-        const existing = cart.find(i => i.cartItemId === cartItemId);
+        const existing = cartItems.find(i => i.cartItemId === cartItemId);
 
         const variationPrice = options.variation ? Number(options.variation.price) : 0;
         const basePrice = Number(item.promo_price || item.price);
@@ -290,9 +299,9 @@ const Home = () => {
         const finalPrice = price + addonsPrice;
 
         if (existing) {
-            setCart(cart.map(i => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity + 1 } : i));
+            setCartItems(cartItems.map(i => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity + 1 } : i));
         } else {
-            setCart([...cart, {
+            setCartItems([...cartItems, {
                 ...item,
                 cartItemId,
                 selectedVariation: options.variation,
@@ -306,15 +315,15 @@ const Home = () => {
     };
 
     const removeFromCart = (cartItemId) => {
-        setCart(cart.map(i => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity > 1 ? i.quantity - 1 : i.quantity } : i));
+        setCartItems(cartItems.map(i => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity > 1 ? i.quantity - 1 : i.quantity } : i));
     };
 
     const deleteFromCart = (cartItemId) => {
-        setCart(cart.filter(i => i.cartItemId !== cartItemId));
+        setCartItems(cartItems.filter(i => i.cartItemId !== cartItemId));
     };
 
-    const cartTotal = cart.reduce((sum, item) => sum + (item.finalPrice * item.quantity), 0);
-    const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+    const cartTotal = cartItems.reduce((sum, item) => sum + (item.finalPrice * item.quantity), 0);
+    const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
     const handlePlaceOrder = async () => {
         if (!orderType) {
@@ -332,7 +341,7 @@ const Home = () => {
         setIsSubmitting(true);
 
         try {
-            const itemDetails = cart.map(item => {
+            const itemDetails = cartItems.map(item => {
                 let d = `${item.name} (x${item.quantity})`;
                 if (item.selectedVariation) d += ` - ${item.selectedVariation.name}`;
                 if (item.selectedFlavors && item.selectedFlavors.length > 0) d += ` [${item.selectedFlavors.join(', ')}]`;
@@ -357,8 +366,12 @@ const Home = () => {
 
             // Backup to LocalStorage
             const localOrder = { ...newOrder, id: Date.now(), timestamp: new Date().toISOString() };
-            const existingOrders = JSON.parse(localStorage.getItem('orders') || '[]');
-            localStorage.setItem('orders', JSON.stringify([...existingOrders, localOrder]));
+            try {
+                const existingOrders = JSON.parse(localStorage.getItem('orders') || '[]');
+                setLocalData('orders', [...existingOrders, localOrder]);
+            } catch (e) {
+                console.warn("Failed to backup order to localStorage");
+            }
 
             // Prepare Messenger message (simplified to avoid spam detection)
             const summary = itemDetails.join('\n');
@@ -378,7 +391,7 @@ ${info}`.trim();
             const messengerUrl = `https://m.me/61579032505526?text=${encodeURIComponent(message)}`;
 
             setOrderSuccess(true);
-            setCart([]);
+            setCartItems([]);
 
             const opened = window.open(messengerUrl, '_blank');
             if (!opened) {
@@ -788,7 +801,7 @@ ${info}`.trim();
                 <div style={{ position: 'fixed', top: 0, right: 0, width: '450px', height: '100vh', background: 'white', boxShadow: '-10px 0 30px rgba(0,0,0,0.1)', zIndex: 1100, padding: '30px', display: 'flex', flexDirection: 'column' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}><h2>Your Cart</h2><button onClick={() => setIsCartOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={24} /></button></div>
                     <div style={{ flex: 1, overflowY: 'auto' }}>
-                        {cart.map(item => (
+                        {cartItems.map(item => (
                             <div key={item.cartItemId} style={{ display: 'flex', gap: '15px', marginBottom: '20px', alignItems: 'flex-start' }}>
                                 <img src={item.image} alt={item.name} style={{ width: '60px', height: '60px', borderRadius: '8px', objectFit: 'cover' }} />
                                 <div style={{ flex: 1 }}>
